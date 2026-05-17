@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人狼プレイスタイル診断</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Zen+Kaku+Gothic+New:wght@300;400;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131e;
+    --surface2: #1c1c2e;
+    --border: #2a2a45;
+    --gold: #c9a84c;
+    --gold2: #f0d080;
+    --text: #e8e0d0;
+    --text-dim: #6a6a85;
+    --mage: #9b6dd6;
+    --sniper: #4a9fb8;
+    --warrior: #c05a3a;
+    --monk: #4aaa6a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 15% 15%, rgba(201,168,76,0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 85%, rgba(155,109,214,0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 660px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeUp 0.4s ease; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* TOP */
+  .top-logo { text-align: center; margin-bottom: 48px; }
+  .top-eyebrow { font-size: 11px; letter-spacing: 0.45em; color: var(--gold); margin-bottom: 20px; }
+  .top-title {
+    font-family: 'Noto Serif JP', serif;
+    font-size: clamp(26px, 6vw, 38px);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    line-height: 1.4;
+  }
+  .top-title span { color: var(--gold); }
+  .divider {
+    width: 48px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 20px auto;
+  }
+  .top-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.8;
+    letter-spacing: 0.05em;
+    max-width: 420px;
+    margin: 0 auto 40px;
+  }
+
+  .axis-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+  .axis-diagram::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.4;
+  }
+  .axis-title { font-size: 11px; letter-spacing: 0.3em; color: var(--gold); text-align: center; margin-bottom: 20px; }
+  .quadrant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  .quad { padding: 14px 16px; border-radius: 3px; background: var(--surface2); }
+  .quad .job-name { font-family: 'Noto Serif JP', serif; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .quad .job-axis { font-size: 10px; letter-spacing: 0.08em; opacity: 0.55; }
+  .quad.mage .job-name { color: var(--mage); }
+  .quad.monk .job-name { color: var(--monk); }
+  .quad.warrior .job-name { color: var(--warrior); }
+  .quad.sniper .job-name { color: var(--sniper); }
+
+  .btn-start {
+    display: block; width: 100%; padding: 18px;
+    background: transparent; border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Noto Serif JP', serif;
+    font-size: 16px; font-weight: 700; letter-spacing: 0.2em;
+    cursor: pointer; border-radius: 3px; transition: all 0.25s;
+    position: relative; overflow: hidden;
+  }
+  .btn-start::before {
+    content: ''; position: absolute; inset: 0;
+    background: var(--gold); opacity: 0; transition: opacity 0.25s;
+  }
+  .btn-start:hover::before { opacity: 0.08; }
+  .btn-start span { position: relative; z-index: 1; }
+
+  /* QUIZ */
+  .progress-wrap { margin-bottom: 28px; }
+  .progress-info {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text-dim);
+    letter-spacing: 0.08em; margin-bottom: 8px;
+  }
+  .progress-bar { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold2));
+    transition: width 0.4s ease;
+  }
+
+  .q-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 32px 28px; margin-bottom: 20px; position: relative;
+  }
+  .q-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.35;
+  }
+  .q-num { font-size: 11px; letter-spacing: 0.3em; color: var(--gold); margin-bottom: 14px; font-family: 'Noto Serif JP', serif; }
+  .q-text { font-size: clamp(15px, 3.8vw, 18px); line-height: 1.75; font-weight: 700; margin-bottom: 24px; letter-spacing: 0.02em; }
+  .q-tags { display: none; }
+
+  .answer-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ans-btn {
+    padding: 18px 12px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 22px; font-weight: 700;
+    cursor: pointer; border-radius: 3px; transition: all 0.2s;
+    letter-spacing: 0.15em;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .ans-btn .ans-label { font-size: 11px; letter-spacing: 0.2em; opacity: 0.55; font-weight: 400; }
+  .ans-btn.maru:hover { border-color: #6aaa6a; color: #6aaa6a; background: rgba(106,170,106,0.08); }
+  .ans-btn.batu:hover { border-color: #aa6a6a; color: #aa6a6a; background: rgba(170,106,106,0.08); }
+  .ans-btn:active { transform: scale(0.97); }
+
+  .score-live { display: none; }
+  .score-chip { font-size: 11px; color: var(--text-dim); letter-spacing: 0.12em; display: flex; align-items: center; gap: 5px; }
+  .score-val { color: var(--gold); font-size: 13px; font-weight: 700; }
+
+  /* RESULT */
+  .result-top { text-align: center; margin-bottom: 40px; }
+  .result-eyebrow { font-size: 11px; letter-spacing: 0.4em; color: var(--gold); margin-bottom: 14px; }
+  .result-job-name {
+    font-family: 'Noto Serif JP', serif;
+    font-size: clamp(44px, 13vw, 68px);
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+  .result-type { font-size: 12px; letter-spacing: 0.18em; color: var(--text-dim); margin-bottom: 8px; }
+  .result-tagline { font-size: 14px; color: var(--text-dim); line-height: 1.7; margin-top: 10px; }
+
+  .result-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 28px; margin-bottom: 14px; position: relative;
+  }
+  .result-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--job-color, #c9a84c), transparent);
+    opacity: 0.5;
+  }
+  .result-section-title { font-size: 11px; letter-spacing: 0.3em; margin-bottom: 14px; font-weight: 700; color: var(--gold); }
+  .result-list { list-style: none; }
+  .result-list li {
+    font-size: 14px; line-height: 1.75;
+    padding: 7px 0 7px 14px; border-bottom: 1px solid var(--border); position: relative;
+  }
+  .result-list li::before { content: '▸'; position: absolute; left: 0; font-size: 10px; top: 9px; opacity: 0.45; }
+  .result-list li:last-child { border-bottom: none; }
+
+  .score-visual { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .score-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 3px; padding: 16px; text-align: center;
+  }
+  .score-box .axis-label { font-size: 10px; letter-spacing: 0.15em; color: var(--text-dim); margin-bottom: 8px; }
+  .score-box .axis-result { font-family: 'Noto Serif JP', serif; font-size: 18px; font-weight: 900; color: var(--gold); margin-bottom: 4px; }
+  .score-box .axis-detail { font-size: 11px; color: var(--text-dim); }
+
+  .compat-list { display: flex; gap: 8px; flex-wrap: wrap; }
+  .compat-chip {
+    padding: 5px 12px; border: 1px solid var(--border);
+    border-radius: 2px; font-size: 12px; letter-spacing: 0.05em;
+  }
+  .compat-chip.first { border-color: var(--gold); color: var(--gold); }
+
+  .btn-retry {
+    display: block; width: 100%; padding: 16px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-size: 13px; letter-spacing: 0.18em;
+    cursor: pointer; border-radius: 3px; margin-top: 24px; transition: all 0.2s;
+  }
+  .btn-retry:hover { border-color: var(--gold); color: var(--gold); }
+
+  .notice-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--gold);
+    border-radius: 3px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .notice-title {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+  .notice-list { list-style: none; }
+  .notice-list li {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.7;
+    padding: 4px 0 4px 12px;
+    position: relative;
+  }
+  .notice-list li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--gold);
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .notice-list li strong { color: var(--text); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TOP -->
+  <div class="screen active" id="screen-top">
+    <div class="top-logo">
+      <div class="top-eyebrow">WEREWOLF × PLAYSTYLE</div>
+      <h1 class="top-title">人狼<span>プレイスタイル</span><br>診断</h1>
+      <div class="divider"></div>
+      <p class="top-desc">
+        20問の質問に〇×で答えることで、あなたの人狼における思考スタイルを4つの職業タイプに分類します。
+      </p>
+    </div>
+
+    <div class="axis-diagram">
+      <div class="axis-title">— 4つのプレイスタイル —</div>
+      <div class="quadrant-grid">
+        <div class="quad monk">
+          <div class="job-name">僧侶</div>
+          <div class="job-axis">Y軸＋ × X軸－ / 盤面受動型</div>
+        </div>
+        <div class="quad mage">
+          <div class="job-name">魔法使い</div>
+          <div class="job-axis">Y軸＋ × X軸＋ / 盤面能動型</div>
+        </div>
+        <div class="quad sniper">
+          <div class="job-name">狙撃手</div>
+          <div class="job-axis">Y軸－ × X軸－ / 単体受動型</div>
+        </div>
+        <div class="quad warrior">
+          <div class="job-name">戦士</div>
+          <div class="job-axis">Y軸－ × X軸＋ / 単体能動型</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notice-box">
+      <div class="notice-title">⚠ はじめにお読みください</div>
+      <ul class="notice-list">
+        <li>この診断は<strong>プレイ傾向を知るための遊び</strong>であり、正確な性格診断ではありません</li>
+        <li>どのタイプに優劣はありません。強いプレイヤーはどのタイプにも存在します</li>
+        <li>回答する時期や状況によって結果が変わることがあります</li>
+        <li>診断結果を他者への決めつけや批判に使用しないでください</li>
+        <li>ニュートラルな状態で、直感的に答えてください</li>
+      </ul>
+    </div>
+
+    <button class="btn-start" onclick="startQuiz()"><span>診断をはじめる →</span></button>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="screen" id="screen-quiz">
+    <div class="progress-wrap">
+      <div class="progress-info">
+        <span id="q-counter">Question 1 / 20</span>
+        <span id="q-pct">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-num" id="q-num">Q01</div>
+      <div class="q-text" id="q-text"></div>
+      <div class="q-tags" id="q-tags"></div>
+      <div class="answer-btns">
+        <button class="ans-btn maru" onclick="answer('maru')">
+          ○ <span class="ans-label">はい</span>
+        </button>
+        <button class="ans-btn batu" onclick="answer('batu')">
+          × <span class="ans-label">いいえ</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="score-live">
+      <div class="score-chip">X軸（能動受動）<span class="score-val" id="live-x">0</span></div>
+      <div class="score-chip">Y軸（盤面単体）<span class="score-val" id="live-y">0</span></div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="screen" id="screen-result">
+    <div class="result-top">
+      <div class="result-eyebrow">あなたのプレイスタイルは</div>
+      <div class="result-job-name" id="res-name"></div>
+      <div class="result-type" id="res-type"></div>
+      <div class="result-tagline" id="res-tagline"></div>
+    </div>
+
+    <div class="score-visual">
+      <div class="score-box">
+        <div class="axis-label">X 軸（能動 ↔ 受動）</div>
+        <div class="axis-result" id="res-x-val"></div>
+        <div class="axis-detail" id="res-x-detail"></div>
+      </div>
+      <div class="score-box">
+        <div class="axis-label">Y 軸（盤面 ↔ 単体）</div>
+        <div class="axis-result" id="res-y-val"></div>
+        <div class="axis-detail" id="res-y-detail"></div>
+      </div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-section-title">■ 長所</div>
+      <ul class="result-list" id="res-str-list"></ul>
+    </div>
+    <div class="result-card">
+      <div class="result-section-title">■ 短所</div>
+      <ul class="result-list" id="res-weak-list"></ul>
+    </div>
+    <div class="result-card">
+      <div class="result-section-title">■ 得意役職</div>
+      <div id="res-role" style="font-size:16px;font-weight:700;letter-spacing:0.1em;color:var(--gold);"></div>
+    </div>
+    <div class="result-card">
+      <div class="result-section-title">■ 相性のいいタイプ</div>
+      <div class="compat-list" id="res-compat"></div>
+    </div>
+
+    <button class="btn-retry" onclick="retry()">もう一度診断する</button>
+  </div>
+
+</div>
+<script>
+const questions = [
+  {
+    // X+能動: 〇=能動。「思案→出力」の先出し感覚
+    text: "気になったことは、まず口に出してから考えが整理されていく感覚がある",
+    tags: [],
+    maru: {x:+1}, batu: {x:-1}
+  },
+  {
+    // Y+盤面: 〇=盤面。2人の関係性から読む
+    text: "AさんとBさんのやり取りを見て、どちらかへの印象が変わることがある",
+    tags: [],
+    maru: {y:+1}, batu: {y:-1}
+  },
+  {
+    // X-受動: 〇=受動。観察してから動く
+    text: "もし人狼だったとしたら、序盤はまず場の空気を読んでから動き始める方が自分らしい",
+    tags: [],
+    maru: {x:-1}, batu: {x:+1}
+  },
+  {
+    // Y-単体: 〇=単体。直接話した相手の方が読みやすい
+    text: "自分が話しかけていない相手より、直接やり取りした相手の方が印象が掴みやすい",
+    tags: [],
+    maru: {y:-1}, batu: {y:+1}
+  },
+  {
+    // X+能動: ×=能動。待つ方が落ち着く＝受動
+    text: "市民のとき、誰かが議論の口火を切ってくれた方が自分のペースで動きやすい",
+    tags: [],
+    maru: {x:-1}, batu: {x:+1}
+  },
+  {
+    // Y+盤面: ×=盤面。自分が絡んでいないログは参考にしない＝単体
+    text: "自分が関わっていない会話のログは、精査の材料としてあまり使わない方だ",
+    tags: [],
+    maru: {y:-1}, batu: {y:+1}
+  },
+  {
+    // X-受動: ×=受動。固まる前に出す＝能動
+    text: "市民のとき、考えが固まってから発言する方が自分には合っている",
+    tags: [],
+    maru: {x:-1}, batu: {x:+1}
+  },
+  {
+    // Y-単体: ×=単体。構造で読む＝盤面
+    text: "もし人狼だったとしたら、特定の一人を集中的に利用するより村全体の流れを使って立ち回る方が自分らしい",
+    tags: [],
+    maru: {y:+1}, batu: {y:-1}
+  },
+  {
+    // X+能動: 〇=能動。まだ誰も触れていない話題を自分で立てる
+    text: "市民のとき、まだ誰も触れていない参加者や発言が気になったら、自分からその話題を出す方だ",
+    tags: [],
+    maru: {x:+1}, batu: {x:-1}
+  },
+  {
+    // Y+盤面: ×=盤面。1人に絞る方が自分らしい＝単体
+    text: "黒を疑い始めたとき、村全体の構図より先にその人への精査を優先する方が自分には合っている",
+    tags: [],
+    maru: {y:-1}, batu: {y:+1}
+  },
+  {
+    // X-受動: 〇=受動。占い結果など材料を待つ
+    text: "市民のとき、占い結果など何らかの材料が出てから本格的に動き始めることが多い",
+    tags: [],
+    maru: {x:-1}, batu: {x:+1}
+  },
+  {
+    // Y+盤面: 〇=盤面。終盤に構図が見えてやりやすくなる
+    text: "市民のとき、ゲームが進むほど村全体の構図が整理されてきて、やりやすくなる感覚がある",
+    tags: [],
+    maru: {y:+1}, batu: {y:-1}
+  },
+  {
+    // X+能動: ×=能動。場の流れに乗る方が自分らしい＝受動
+    text: "もし人狼だったとしたら、議論を引っ張るより場の流れに自然に乗る方が自分には合っている",
+    tags: [],
+    maru: {x:-1}, batu: {x:+1}
+  },
+  {
+    // Y-単体: 〇=単体。1人との関係性で立場を守る
+    text: "もし人狼だったとしたら、特定の一人との関係性を作ることで自分の立場を守ろうとする方だ",
+    tags: [],
+    maru: {y:-1}, batu: {y:+1}
+  },
+  {
+    // X+能動: 〇=能動。まだ誰も出していない視点を先に出す
+    text: "もし人狼だったとしたら、他の参加者がまだ触れていない考察を先に出して信頼を作ろうとする方だ",
+    tags: [],
+    maru: {x:+1}, batu: {x:-1}
+  },
+  {
+    // Y+盤面: 〇=盤面。対立構造を利用して立ち回る
+    text: "もし人狼だったとしたら、村の中で生まれている対立や疑いの構造を利用して立ち回る方が自分らしい",
+    tags: [],
+    maru: {y:+1}, batu: {y:-1}
+  },
+  {
+    // X-受動: ×=受動。自分から進行提案する＝能動
+    text: "市民のとき、「今日はこう進めよう」という提案を自分から出すより、誰かの提案に乗る方が自分には合っている",
+    tags: [],
+    maru: {x:-1}, batu: {x:+1}
+  },
+  {
+    // Y-単体: ×=単体。整合性・ログ全体で読む＝盤面
+    text: "市民のとき、黒を疑う根拠として発言の整合性やログ全体のズレを重視することが多い",
+    tags: [],
+    maru: {y:+1}, batu: {y:-1}
+  },
+  {
+    // X+能動: 〇=能動。思案→出力→観察の順序
+    text: "もし人狼だったとしたら、安全を確認してから動くより、まず動いてから状況を見る方が自分らしい",
+    tags: [],
+    maru: {x:+1}, batu: {x:-1}
+  },
+  {
+    // Y-単体: 〇=単体。深掘りや反論で1人を詰める
+    text: "市民のとき、浅い考察や根拠の薄い発言に対して、深掘りや問い返しをしたくなる方だ",
+    tags: [],
+    maru: {y:-1}, batu: {y:+1}
+  }
+];
+
+const jobs = {
+  mage: {
+    name:"魔法使い", color:"#9b6dd6",
+    type:"盤面能動型 ｜ Y軸＋ × X軸＋",
+    tagline:"盤面情報を得る為に理想的な型に嵌めるタイプ",
+    strengths:[
+      "理想的な形に盤面を持っていくのが得意",
+      "初動から進行論の提案などをして優位なポジション取りが上手い",
+      "他タイプよりも言動が目立ちやすい為、初日に吊られにくい"
+    ],
+    weaknesses:[
+      "相手に要求する理解力や寛容性が高すぎる",
+      "誤解もされやすく、解消に時間がかかる"
+    ],
+    role:"村人（市民）",
+    compat:["狙撃手","僧侶","勇者","戦士","魔法使い"]
+  },
+  monk: {
+    name:"僧侶", color:"#4aaa6a",
+    type:"盤面受動型 ｜ Y軸＋ × X軸－",
+    tagline:"議論を俯瞰し客観的な視点で語るタイプ",
+    strengths:[
+      "自分が入っていない対話に対しての精査が得意",
+      "ゲーム終盤になるにつれ白く観られやすい",
+      "全体的なバランスを考えて発言を調整できる"
+    ],
+    weaknesses:[
+      "議論が動きだすまでの初動が苦手",
+      "傍観している事が多く初日の序盤中盤で共感性が得られないと吊るされる事がある"
+    ],
+    role:"狩人（騎士）",
+    compat:["戦士","魔法使い","僧侶","狙撃手","勇者"]
+  },
+  warrior: {
+    name:"戦士", color:"#c05a3a",
+    type:"単体能動型 ｜ Y軸－ × X軸＋",
+    tagline:"単体精査で積極的に議論を動かすタイプ",
+    strengths:[
+      "序盤から出力を高めていけるポテンシャルがあり議論を引っ張りやすい",
+      "発言内容から相方位置を想像しづらく白で観られやすい傾向がある"
+    ],
+    weaknesses:[
+      "やや思考ロック気味になりやすい傾向があり、ミスリードからの復帰までやや時間がかかる",
+      "終盤にかけてスタミナ切れを起こしやすい"
+    ],
+    role:"霊媒師（霊能者）",
+    compat:["勇者","狙撃手","戦士","僧侶","魔法使い"]
+  },
+  sniper: {
+    name:"狙撃手", color:"#4a9fb8",
+    type:"単体受動型 ｜ Y軸－ × X軸－",
+    tagline:"対話を通して精査を煮詰めていくタイプ",
+    strengths:[
+      "単体精査が主体で役職の決め打ちが得意",
+      "情報を取り入れるのがどのタイプよりも優れていて占い師の時に真価を発揮しやすい",
+      "浅い考察に対して深掘りをしていける",
+      "終盤にかけて説得力が増す"
+    ],
+    weaknesses:[
+      "黒い人物を見つけてから対立構造などは無視して周りに説得を始めるので伝わらない事がある",
+      "序盤の起点が無い村だと動きづらい"
+    ],
+    role:"予言者（占い師）",
+    compat:["僧侶","魔法使い","勇者","戦士","狙撃手"]
+  }
+};
+
+let current=0, xScore=0, yScore=0;
+
+function startQuiz(){
+  current=0; xScore=0; yScore=0;
+  showScreen('screen-quiz');
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const q=questions[current], n=current+1, total=questions.length;
+  document.getElementById('q-counter').textContent=`Question ${n} / ${total}`;
+  document.getElementById('q-pct').textContent=Math.round(current/total*100)+'%';
+  document.getElementById('progress-fill').style.width=(current/total*100)+'%';
+  document.getElementById('q-num').textContent='Q'+String(n).padStart(2,'0');
+  document.getElementById('q-text').textContent=q.text;
+  const tagsEl=document.getElementById('q-tags');
+  tagsEl.innerHTML='';
+  q.tags.forEach(t=>{
+    const s=document.createElement('span');
+    s.className='q-tag '+t.cls; s.textContent=t.label;
+    tagsEl.appendChild(s);
+  });
+  document.getElementById('live-x').textContent=(xScore>=0?'+':'')+xScore;
+  document.getElementById('live-y').textContent=(yScore>=0?'+':'')+yScore;
+}
+
+function answer(choice){
+  const d=questions[current][choice];
+  if(d.x) xScore+=d.x;
+  if(d.y) yScore+=d.y;
+  current++;
+  if(current>=questions.length) showResult();
+  else renderQuestion();
+}
+
+function showResult(){
+  let key;
+  if(xScore>=0&&yScore>=0) key='mage';
+  else if(xScore<0&&yScore>=0) key='monk';
+  else if(xScore>=0&&yScore<0) key='warrior';
+  else key='sniper';
+  const j=jobs[key];
+
+  document.getElementById('res-name').textContent=j.name;
+  document.getElementById('res-name').style.color=j.color;
+  document.getElementById('res-type').textContent=j.type;
+  document.getElementById('res-tagline').textContent=j.tagline;
+
+  document.getElementById('res-x-val').textContent=(xScore>=0?'能動寄り ＋':'受動寄り ')+Math.abs(xScore);
+  document.getElementById('res-y-val').textContent=(yScore>=0?'盤面寄り ＋':'単体寄り ')+Math.abs(yScore);
+  document.getElementById('res-x-detail').textContent=xScore>=0?'積極的に場を動かすタイプ':'反応しながら動くタイプ';
+  document.getElementById('res-y-detail').textContent=yScore>=0?'全体俯瞰が得意なタイプ':'単体精査が得意なタイプ';
+
+  ['str','weak'].forEach((k,i)=>{
+    const list=document.getElementById(`res-${k}-list`);
+    list.innerHTML='';
+    (i===0?j.strengths:j.weaknesses).forEach(txt=>{
+      const li=document.createElement('li'); li.textContent=txt;
+      list.appendChild(li);
+    });
+  });
+
+  document.getElementById('res-role').textContent=j.role;
+
+  const compat=document.getElementById('res-compat');
+  compat.innerHTML='';
+  j.compat.forEach((c,i)=>{
+    const span=document.createElement('span');
+    span.className='compat-chip'+(i===0?' first':'');
+    span.textContent=(i+1)+'. '+c;
+    compat.appendChild(span);
+  });
+
+  document.querySelectorAll('.result-card').forEach(el=>{
+    el.style.setProperty('--job-color',j.color);
+  });
+
+  showScreen('screen-result');
+}
+
+function retry(){
+  current=0; xScore=0; yScore=0;
+  showScreen('screen-top');
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
